@@ -1,0 +1,33 @@
+{
+  "name": "nse-stock-scraper",
+  "version": "1.0.0",
+  "description": "Stock data scraper for NSE India",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "jest",
+    "lint": "eslint .",
+    "api": "node api.js"
+  },
+  "dependencies": {
+    "puppeteer": "^20.8.0",
+    "axios": "^1.4.0",
+    "dotenv": "^16.3.1",
+    "winston": "^3.10.0",
+    "node-cron": "^3.0.2",
+    "mongoose": "^7.4.1",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.0.0",
+    "express-rate-limit": "^6.9.0",
+    "csv-parser": "^3.0.0",
+    "technicalindicators": "^3.1.0"
+  },
+  "devDependencies": {
+    "jest": "^29.6.1",
+    "nodemon": "^3.0.1",
+    "eslint": "^8.46.0",
+    "supertest": "^6.3.3"
+  }
+}

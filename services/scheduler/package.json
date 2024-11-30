@@ -1,0 +1,26 @@
+{
+  "name": "stock-analysis-scheduler",
+  "version": "1.0.0",
+  "description": "Automated scheduler for stock data analysis tasks",
+  "main": "scheduler.js",
+  "scripts": {
+    "start": "node scheduler.js",
+    "dev": "nodemon scheduler.js",
+    "test": "jest"
+  },
+  "dependencies": {
+    "node-cron": "^3.0.2",
+    "axios": "^1.4.0",
+    "winston": "^3.10.0",
+    "dotenv": "^16.3.1",
+    "moment-timezone": "^0.5.43",
+    "redis": "^4.6.7",
+    "mongodb": "^5.7.0",
+    "bull": "^4.10.4",
+    "node-cache": "^5.1.2"
+  },
+  "devDependencies": {
+    "jest": "^29.6.2",
+    "nodemon": "^3.0.1"
+  }
+}

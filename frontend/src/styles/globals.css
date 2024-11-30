@@ -1,0 +1,111 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #2563eb;
+  --primary-dark: #1d4ed8;
+  --success: #059669;
+  --danger: #dc2626;
+  --warning: #d97706;
+}
+
+body {
+  @apply antialiased text-gray-900 bg-gray-50;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #666;
+}
+
+/* Animations */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: .5;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Custom utility classes */
+.transition-fast {
+  transition-duration: 150ms;
+}
+
+.shadow-card {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05),
+              0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.hover-shadow-card:hover {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05),
+              0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Stock card styles */
+.stock-card {
+  @apply bg-white rounded-lg shadow-card hover:shadow-lg transition-shadow duration-300;
+}
+
+.stock-metric {
+  @apply flex items-center space-x-2 text-sm font-medium;
+}
+
+.metric-label {
+  @apply text-gray-500 text-xs uppercase tracking-wide;
+}
+
+.metric-value {
+  @apply font-semibold;
+}
+
+/* Button styles */
+.btn {
+  @apply px-4 py-2 rounded-lg font-medium transition-colors duration-200;
+}
+
+.btn-primary {
+  @apply bg-primary text-white hover:bg-primary-dark;
+}
+
+.btn-outline {
+  @apply border border-gray-200 text-gray-700 hover:bg-gray-50;
+}
+
+/* Filter styles */
+.filter-select {
+  @apply w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent;
+}
+
+/* Loading skeleton */
+.skeleton {
+  @apply animate-pulse bg-gray-200 rounded;
+}
+
+.skeleton-text {
+  @apply h-4 bg-gray-200 rounded;
+}
+
+.skeleton-circle {
+  @apply h-10 w-10 bg-gray-200 rounded-full;
+}
