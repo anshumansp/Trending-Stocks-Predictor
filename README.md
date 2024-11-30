@@ -1,13 +1,14 @@
-# AWS Orchestrator
+# AI Stocks Predictor
 
 ## 📖 Overview
 
-AWS Orchestrator is a powerful, enterprise-grade platform that combines AI-driven stock analysis with cloud infrastructure automation. It leverages AWS services and machine learning to provide intelligent stock recommendations while maintaining scalable and cost-effective cloud operations.
+AI Stocks Predictor is a powerful, enterprise-grade platform that combines AI-driven stock analysis with cloud infrastructure automation. It leverages AWS services, Anthropic Claude, and machine learning to provide intelligent stock recommendations while maintaining scalable and cost-effective cloud operations.
 
 ### 🌟 Key Features
 
 - **AI-Powered Stock Analysis**
   - Real-time market data processing
+  - Advanced NLP using Anthropic Claude
   - Sentiment analysis from multiple sources
   - Technical indicator calculations
   - Machine learning-based predictions
@@ -37,6 +38,7 @@ AWS Orchestrator is a powerful, enterprise-grade platform that combines AI-drive
 - **API**: FastAPI
 - **Language**: Python 3.8+
 - **ML/AI**: 
+  - Anthropic Claude API
   - HuggingFace Transformers
   - scikit-learn
   - pandas
@@ -112,6 +114,7 @@ FRONTEND_URL=http://localhost:3000
 # ML Model Configuration
 MODEL_VERSION=latest
 HUGGINGFACE_API_KEY=your_key
+ANTHROPIC_CLAUDE_API_KEY=your_key
 ```
 
 ## 📁 Project Structure
@@ -136,17 +139,14 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## 📜 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
 ## 🙏 Acknowledgments
 
 - [AWS Documentation](https://docs.aws.amazon.com/)
 - [FastAPI](https://fastapi.tiangolo.com/)
 - [Next.js](https://nextjs.org/)
 - [TradingView](https://www.tradingview.com/)
+- [Anthropic](https://anthropic.com/)
 
 ## 📞 Support
 
-For support, email support@awsorchestrator.com or join our Discord channel.
+For support, email anshumansp16@gmail.com.

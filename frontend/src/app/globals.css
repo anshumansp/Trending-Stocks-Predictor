@@ -2,12 +2,154 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-rgb: 249, 250, 251;
+  --radius: 0.5rem;
 }
 
-body {
-  color: rgb(var(--foreground-rgb));
-  background: rgb(var(--background-rgb));
+@layer base {
+  body {
+    font-family: 'Inter', sans-serif;
+    @apply bg-white text-black antialiased;
+  }
+
+  ::selection {
+    @apply bg-black/10 text-black;
+  }
+}
+
+@layer components {
+  /* Card Component */
+  .card {
+    @apply bg-white rounded-[var(--radius)] 
+           border border-black/20 
+           shadow-sm hover:shadow-md
+           hover:border-black/30 
+           transition-all duration-200
+           p-6;
+  }
+
+  /* Button Components */
+  .btn-primary {
+    @apply bg-black text-white 
+           hover:bg-black/90
+           active:bg-black/80
+           disabled:bg-black/50 disabled:text-white/70
+           px-4 py-2 rounded-[var(--radius)] font-medium
+           transition-all duration-200 shadow-sm
+           focus:outline-none focus:ring-2 focus:ring-black/20;
+  }
+
+  .btn-secondary {
+    @apply bg-white text-black
+           hover:bg-black/10
+           active:bg-black/20
+           disabled:bg-black/5 disabled:text-black/40
+           border border-black/30
+           px-4 py-2 rounded-[var(--radius)] font-medium
+           transition-all duration-200 shadow-sm
+           focus:outline-none focus:ring-2 focus:ring-black/20;
+  }
+
+  /* Section Styles */
+  .section {
+    @apply py-20 px-4 bg-white;
+  }
+
+  .section-title {
+    @apply text-3xl md:text-4xl font-bold text-black 
+           mb-4 tracking-tight;
+  }
+
+  .section-subtitle {
+    @apply text-lg text-black/70 max-w-2xl mx-auto mb-12;
+  }
+
+  /* Feature Card */
+  .feature-card {
+    @apply p-6 rounded-[var(--radius)] 
+           bg-white border border-black/20
+           hover:border-black/30 transition-all
+           shadow-sm hover:shadow-md;
+  }
+
+  .feature-icon {
+    @apply w-10 h-10 rounded-full 
+           bg-black/10 text-black
+           flex items-center justify-center
+           mb-4;
+  }
+
+  /* Hero Section */
+  .hero {
+    @apply relative overflow-hidden
+           bg-white
+           border-b border-black/20;
+  }
+
+  .hero-content {
+    @apply max-w-7xl mx-auto px-4 py-20 sm:py-24 lg:py-32
+           text-center;
+  }
+
+  .hero-title {
+    @apply text-4xl md:text-5xl lg:text-6xl font-bold
+           text-black tracking-tight
+           mb-6;
+  }
+
+  .hero-subtitle {
+    @apply text-lg md:text-xl text-black/70
+           max-w-2xl mx-auto mb-8;
+  }
+
+  /* Stats Section */
+  .stats-grid {
+    @apply grid grid-cols-2 md:grid-cols-4 gap-8
+           max-w-7xl mx-auto px-4;
+  }
+
+  .stat-card {
+    @apply text-center p-6 bg-white;
+  }
+
+  .stat-value {
+    @apply text-3xl font-bold text-black mb-2;
+  }
+
+  .stat-label {
+    @apply text-sm text-black/70;
+  }
+
+  /* Input Components */
+  .input-primary {
+    @apply w-full px-4 py-2 
+           bg-white
+           border border-black/30
+           rounded-[var(--radius)]
+           text-black placeholder:text-black/50
+           focus:outline-none focus:ring-2 focus:ring-black/20 focus:border-black
+           disabled:bg-black/5 disabled:text-black/40
+           transition-all duration-200;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 14px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border: 4px solid #f1f5f9;
+  border-radius: 7px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }

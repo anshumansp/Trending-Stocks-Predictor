@@ -1,0 +1,16 @@
+{
+  "name": "StockAI",
+  "short_name": "StockAI",
+  "description": "AI-Powered Stock Predictions",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "32x32",
+      "type": "image/svg+xml"
+    }
+  ]
+}

@@ -19,9 +19,11 @@ from ..dependencies import (
     cache_analysis
 )
 from ...agents.orchestrator import StockAnalysisOrchestrator
+from ..services.claude_service import ClaudeService
 
 router = APIRouter(prefix="/api/v1/stock", tags=["stock"])
 orchestrator = StockAnalysisOrchestrator()
+claude_service = ClaudeService()
 
 @router.post("/analyze", response_model=AnalysisResponse)
 async def analyze_stock(
@@ -107,15 +109,44 @@ async def analyze_sentiment(
     api_key: str = Depends(verify_api_key)
 ):
     """
-    Analyze sentiment for a stock
+    Analyze sentiment for a stock using Claude's advanced NLP capabilities
     """
     try:
-        result = await orchestrator.sentiment_agent.process({
+        # Get news and financial data
+        news_data = await orchestrator.sentiment_agent.process({
+            'action': 'fetch_news',
+            'symbol': request.symbol,
+            'timeframe': request.timeframe
+        })
+        
+        financial_data = await orchestrator.stock_agent.process({
+            'action': 'get_financials',
+            'symbol': request.symbol
+        })
+
+        # Use Claude for advanced sentiment analysis
+        claude_analysis = await claude_service.analyze_stock_sentiment(
+            company_name=request.symbol,
+            news_data=news_data,
+            financial_data=financial_data
+        )
+
+        # Combine with traditional sentiment analysis
+        traditional_analysis = await orchestrator.sentiment_agent.process({
             'action': 'analyze',
             'symbol': request.symbol,
             'sources': request.sources,
             'timeframe': request.timeframe
         })
+
+        # Merge both analyses
+        result = {
+            'claude_analysis': claude_analysis,
+            'traditional_analysis': traditional_analysis,
+            'timestamp': datetime.now().isoformat(),
+            'symbol': request.symbol
+        }
+
         return result
 
     except Exception as e:
@@ -168,12 +199,89 @@ async def get_market_summary(
     api_key: str = Depends(verify_api_key)
 ):
     """
-    Get overall market summary
+    Get comprehensive market summary using Claude's analysis
     """
     try:
-        result = await orchestrator.stock_agent.process({
+        # Get market data
+        market_data = await orchestrator.stock_agent.process({
             'action': 'market_summary'
         })
+
+        # Get economic indicators
+        economic_data = await orchestrator.stock_agent.process({
+            'action': 'economic_indicators'
+        })
+
+        # Get global events
+        global_events = await orchestrator.sentiment_agent.process({
+            'action': 'global_events'
+        })
+
+        # Get Claude's market insights
+        claude_insights = await claude_service.generate_market_insights(
+            market_data=market_data,
+            economic_indicators=economic_data,
+            global_events=global_events
+        )
+
+        # Combine all data
+        result = {
+            'market_data': market_data,
+            'economic_indicators': economic_data,
+            'global_events': global_events,
+            'claude_insights': claude_insights,
+            'timestamp': datetime.now().isoformat()
+        }
+
+        return result
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/fundamentals/{symbol}", response_model=dict)
+async def analyze_fundamentals(
+    symbol: str,
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Get comprehensive fundamental analysis using Claude
+    """
+    try:
+        # Get company data
+        company_data = await orchestrator.stock_agent.process({
+            'action': 'company_fundamentals',
+            'symbol': symbol
+        })
+
+        # Get industry data
+        industry_data = await orchestrator.stock_agent.process({
+            'action': 'industry_metrics',
+            'symbol': symbol
+        })
+
+        # Get competitor data
+        competitor_data = await orchestrator.stock_agent.process({
+            'action': 'competitor_analysis',
+            'symbol': symbol
+        })
+
+        # Get Claude's fundamental analysis
+        claude_analysis = await claude_service.analyze_company_fundamentals(
+            company_data=company_data,
+            industry_data=industry_data,
+            competitor_data=competitor_data
+        )
+
+        # Combine all analyses
+        result = {
+            'company_data': company_data,
+            'industry_data': industry_data,
+            'competitor_data': competitor_data,
+            'claude_analysis': claude_analysis,
+            'timestamp': datetime.now().isoformat(),
+            'symbol': symbol
+        }
+
         return result
 
     except Exception as e:

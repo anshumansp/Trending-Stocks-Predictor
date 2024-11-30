@@ -1,3 +1,6 @@
 {
-  "/page": "app/page.js"
+  "/page": "app/page.js",
+  "/stock-predictor/page": "app/stock-predictor/page.js",
+  "/about/page": "app/about/page.js",
+  "/services/page": "app/services/page.js"
 }
