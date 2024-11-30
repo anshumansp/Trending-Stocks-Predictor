@@ -1,14 +1,5 @@
 # AWS Orchestrator
 
-<div align="center">
-
-[![GitHub license](https://img.shields.io/github/license/yourusername/aws-orchestrator)](https://github.com/yourusername/aws-orchestrator/blob/main/LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/yourusername/aws-orchestrator)](https://github.com/yourusername/aws-orchestrator/stargazers)
-[![GitHub issues](https://img.shields.io/github/issues/yourusername/aws-orchestrator)](https://github.com/yourusername/aws-orchestrator/issues)
-[![GitHub forks](https://img.shields.io/github/forks/yourusername/aws-orchestrator)](https://github.com/yourusername/aws-orchestrator/network)
-
-</div>
-
 ## 📖 Overview
 
 AWS Orchestrator is a powerful, enterprise-grade platform that combines AI-driven stock analysis with cloud infrastructure automation. It leverages AWS services and machine learning to provide intelligent stock recommendations while maintaining scalable and cost-effective cloud operations.
