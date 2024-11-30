@@ -155,7 +155,7 @@ export default function StockPredictor() {
               <input
                 type="text"
                 placeholder="Search stocks..."
-                className="input-primary w-full"
+                className="input-primary w-full pl-10"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />

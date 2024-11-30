@@ -1,134 +1,130 @@
-from langchain.agents import Tool
-from langchain.prompts import StringPromptTemplate
-from typing import List, Dict, Any
-import json
-import aiohttp
-from base_agent import BaseAgent
-from config import STOCK_DATA_CONFIG
+from typing import Dict, Any, Optional
+import yfinance as yf
+import pandas as pd
+from base_agent import BaseStockAgent
 
-class StockDataPromptTemplate(StringPromptTemplate):
-    template = """You are a Stock Data Agent responsible for fetching and analyzing stock market data.
-Your goal is to gather accurate market data and provide initial analysis.
-
-You have access to the following tools:
-{tools}
-
-Current conversation:
-{chat_history}
-
-New input: {input}
-
-Think through this step-by-step:
-1) What specific data do you need to fetch?
-2) How will you analyze this data?
-3) What format should the output be in?
-
-Action: """
-
-    def format(self, **kwargs) -> str:
-        kwargs["tools"] = "\n".join([f"{tool.name}: {tool.description}" for tool in kwargs["tools"]])
-        return self.template.format(**kwargs)
-
-class StockDataAgent(BaseAgent):
+class StockDataAgent(BaseStockAgent):
     def __init__(self):
-        super().__init__("StockDataAgent")
+        super().__init__(
+            name="Stock Data Agent",
+            description="Fetches and analyzes stock market data, including prices, volumes, and technical indicators."
+        )
         self.cache = {}
 
-    def _get_tools(self) -> List[Tool]:
-        return [
-            Tool(
-                name="fetch_stock_data",
-                func=self._fetch_stock_data,
-                description="Fetch current stock data including price, volume, and basic metrics"
-            ),
-            Tool(
-                name="analyze_technical_indicators",
-                func=self._analyze_technical_indicators,
-                description="Calculate technical indicators like RSI, MACD, and moving averages"
-            ),
-            Tool(
-                name="get_historical_data",
-                func=self._get_historical_data,
-                description="Fetch historical stock data for trend analysis"
-            )
-        ]
+    def _get_capabilities(self) -> Dict[str, Any]:
+        return {
+            'real_time_data': True,
+            'historical_data': True,
+            'technical_analysis': True,
+            'fundamental_data': True,
+            'market_data': True
+        }
 
-    def _create_prompt(self) -> StringPromptTemplate:
-        return StockDataPromptTemplate()
-
-    async def _fetch_stock_data(self, symbol: str) -> Dict[str, Any]:
-        """Fetch current stock data from NSE"""
-        try:
-            # Check cache first
-            if symbol in self.cache:
-                return self.cache[symbol]
-
-            async with aiohttp.ClientSession() as session:
-                async with session.get(f"{STOCK_DATA_CONFIG['nse_url']}/api/quote-equity?symbol={symbol}") as response:
-                    data = await response.json()
-                    
-                    processed_data = {
-                        'symbol': symbol,
-                        'price': data['lastPrice'],
-                        'change': data['change'],
-                        'volume': data['totalTradedVolume'],
-                        'high': data['dayHigh'],
-                        'low': data['dayLow'],
-                        'timestamp': data['lastUpdateTime']
-                    }
-
-                    # Cache the result
-                    self.cache[symbol] = processed_data
-                    return processed_data
-
-        except Exception as e:
-            return {'error': f"Failed to fetch stock data: {str(e)}"}
-
-    async def _analyze_technical_indicators(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate technical indicators for the stock"""
-        try:
-            # Implementation of technical analysis
-            # This would use the analysis module we created earlier
+    async def process_request(self, request: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Process a stock data request"""
+        # First, get the stock data
+        symbol = self._extract_symbol(request)
+        if not symbol:
             return {
-                'symbol': data['symbol'],
-                'indicators': {
-                    'rsi': 0,  # Calculate RSI
-                    'macd': {  # Calculate MACD
-                        'value': 0,
-                        'signal': 0,
-                        'histogram': 0
-                    },
-                    'sma': {  # Calculate SMAs
-                        '20': 0,
-                        '50': 0,
-                        '200': 0
-                    }
-                }
+                'error': 'No stock symbol found in request',
+                'source': 'claude-3-haiku',
+                'analysis_type': 'stock_data'
             }
-        except Exception as e:
-            return {'error': f"Failed to calculate indicators: {str(e)}"}
 
-    async def _get_historical_data(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Fetch historical data for the stock"""
         try:
-            symbol = params['symbol']
-            days = params.get('days', 30)
+            # Fetch stock data
+            stock = yf.Ticker(symbol)
+            hist = stock.history(period="1y")
+            info = stock.info
 
-            async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    f"{STOCK_DATA_CONFIG['nse_url']}/api/historical?symbol={symbol}&days={days}"
-                ) as response:
-                    data = await response.json()
-                    return {
-                        'symbol': symbol,
-                        'historical_data': data
-                    }
+            # Prepare data for Claude's analysis
+            data_context = {
+                'symbol': symbol,
+                'current_price': info.get('regularMarketPrice', 'N/A'),
+                'volume': info.get('regularMarketVolume', 'N/A'),
+                'market_cap': info.get('marketCap', 'N/A'),
+                'pe_ratio': info.get('forwardPE', 'N/A'),
+                'fifty_two_week_high': info.get('fiftyTwoWeekHigh', 'N/A'),
+                'fifty_two_week_low': info.get('fiftyTwoWeekLow', 'N/A'),
+                'year_price_change': self._calculate_price_change(hist)
+            }
+
+            system_prompt = """You are an expert stock market analyst. Your role is to:
+1. Analyze stock price movements and patterns
+2. Evaluate technical indicators
+3. Identify key price levels and trends
+4. Assess trading volumes and market activity
+5. Provide data-driven market insights
+
+Format your response as a structured analysis with clear sections and specific data points."""
+
+            # Construct the analysis prompt
+            analysis_prompt = f"""Analyze the stock data for {symbol}:
+
+Current Data:
+- Price: ${data_context['current_price']}
+- Volume: {data_context['volume']}
+- Market Cap: ${data_context['market_cap']}
+- P/E Ratio: {data_context['pe_ratio']}
+- 52-Week High: ${data_context['fifty_two_week_high']}
+- 52-Week Low: ${data_context['fifty_two_week_low']}
+- Year Price Change: {data_context['year_price_change']}%
+
+Please provide:
+1. Technical Analysis
+   - Price Trend Analysis
+   - Volume Analysis
+   - Key Support/Resistance Levels
+2. Market Statistics
+   - Trading Range Analysis
+   - Volatility Assessment
+   - Volume Profile
+3. Key Levels
+   - Critical Price Points
+   - Breakout/Breakdown Levels
+   - Risk Management Levels
+4. Market Context
+   - Relative Strength
+   - Market Conditions
+   - Trading Activity Assessment
+
+Additional Context:
+{context if context else 'No additional context provided'}"""
+
+            # Get Claude's analysis
+            response = await self._call_claude(analysis_prompt, system_prompt)
+
+            # Process and structure the response
+            return {
+                'stock_data': response,
+                'raw_data': data_context,
+                'source': 'claude-3-haiku',
+                'analysis_type': 'comprehensive_stock_data',
+                'timestamp': context.get('timestamp') if context else None
+            }
+
         except Exception as e:
-            return {'error': f"Failed to fetch historical data: {str(e)}"}
+            return {
+                'error': f"Failed to analyze stock data: {str(e)}",
+                'source': 'claude-3-haiku',
+                'analysis_type': 'stock_data'
+            }
 
-    async def handle_callback(self, message: Dict[str, Any]) -> None:
-        """Handle messages from other agents"""
-        if message.get('type') == 'data_request':
-            result = await self.process(message['data'])
-            # Implement callback mechanism to respond to the requesting agent
-            pass
+    def _extract_symbol(self, request: str) -> Optional[str]:
+        """Extract stock symbol from request"""
+        # Basic implementation - could be enhanced with Claude's help
+        words = request.upper().split()
+        for word in words:
+            if word.isalpha() and len(word) <= 5:  # Most stock symbols are 1-5 letters
+                return word
+        return None
+
+    def _calculate_price_change(self, hist: pd.DataFrame) -> float:
+        """Calculate year-to-date price change percentage"""
+        if hist.empty:
+            return 0.0
+        
+        first_price = hist['Close'].iloc[0]
+        last_price = hist['Close'].iloc[-1]
+        
+        return round(((last_price - first_price) / first_price) * 100, 2)

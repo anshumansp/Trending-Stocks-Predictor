@@ -5,9 +5,9 @@ from fastapi import HTTPException
 
 class ClaudeService:
     def __init__(self):
-        self.api_key = os.getenv("ANTHROPIC_CLAUDE_API_KEY")
+        self.api_key = os.getenv("ANTHROPIC_API_KEY")
         if not self.api_key:
-            raise ValueError("ANTHROPIC_CLAUDE_API_KEY environment variable is not set")
+            raise ValueError("ANTHROPIC_API_KEY environment variable is not set")
         self.client = anthropic.Client(api_key=self.api_key)
         self.model = "claude-3-haiku-20240307"  # Using Claude 3 Haiku
         self.max_tokens = 4096  # Haiku's context window

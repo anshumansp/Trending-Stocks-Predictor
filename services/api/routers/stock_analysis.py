@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from typing import List, Optional
 from datetime import datetime
+from pydantic import BaseModel
 from ..models import (
     StockAnalysisRequest,
     HistoricalDataRequest,
@@ -9,7 +10,9 @@ from ..models import (
     WatchlistRequest,
     AlertRequest,
     AnalysisResponse,
-    ErrorResponse
+    ErrorResponse,
+    IndianStockRequest,
+    IndianStockResponse
 )
 from ..dependencies import (
     verify_api_key,
@@ -19,10 +22,12 @@ from ..dependencies import (
     cache_analysis
 )
 from ...agents.orchestrator import StockAnalysisOrchestrator
+from ...agents.indian_stock_data_agent import IndianStockDataAgent
 from ..services.claude_service import ClaudeService
 
 router = APIRouter(prefix="/api/v1/stock", tags=["stock"])
 orchestrator = StockAnalysisOrchestrator()
+indian_stock_agent = IndianStockDataAgent()
 claude_service = ClaudeService()
 
 @router.post("/analyze", response_model=AnalysisResponse)
@@ -284,5 +289,104 @@ async def analyze_fundamentals(
 
         return result
 
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/analyze/indian", response_model=IndianStockResponse)
+async def analyze_indian_stock(
+    request: IndianStockRequest,
+    background_tasks: BackgroundTasks,
+    api_key: str = Depends(verify_api_key),
+    rate_limit: dict = Depends(get_rate_limit)
+):
+    """
+    Analyze an Indian stock (NSE/BSE) and provide comprehensive insights
+    """
+    try:
+        # Check cache first
+        cache_key = f"{request.symbol}_{request.exchange}"
+        cached_result = get_cached_analysis(cache_key)
+        if cached_result:
+            return IndianStockResponse(**cached_result)
+
+        # Perform analysis
+        result = await indian_stock_agent.process_request(
+            f"Analyze {request.symbol} on {request.exchange}",
+            context={
+                'include_technical': request.include_technical,
+                'include_sentiment': request.include_sentiment,
+                'include_growth': request.include_growth,
+                'timestamp': datetime.utcnow()
+            }
+        )
+
+        if 'error' in result:
+            raise HTTPException(status_code=404, detail=result['error'])
+
+        # Format response
+        response_data = {
+            'symbol': request.symbol,
+            'exchange': request.exchange,
+            'current_price': result['raw_data']['current_price'],
+            'market_cap': result['raw_data']['market_cap'],
+            'pe_ratio': result['raw_data']['pe_ratio'],
+            'volume': result['raw_data']['volume'],
+            'fifty_two_week_high': result['raw_data']['fifty_two_week_high'],
+            'fifty_two_week_low': result['raw_data']['fifty_two_week_low'],
+            'year_price_change': result['raw_data']['year_price_change'],
+            'analysis': result['stock_data'],
+            'timestamp': result.get('timestamp', datetime.utcnow()),
+            'status': 'success'
+        }
+
+        # Cache the result in background
+        background_tasks.add_task(cache_analysis, cache_key, response_data)
+
+        return IndianStockResponse(**response_data)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/market/india")
+async def get_indian_market_summary(
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Get comprehensive Indian market summary using Claude's analysis
+    """
+    try:
+        # Analyze major Indian indices
+        nifty_analysis = await indian_stock_agent.process_request("Analyze NIFTY50.NS")
+        sensex_analysis = await indian_stock_agent.process_request("Analyze SENSEX.BO")
+        
+        # Get Claude's market analysis
+        market_prompt = f"""Analyze the current Indian market conditions:
+
+Nifty 50:
+{nifty_analysis['stock_data']}
+
+Sensex:
+{sensex_analysis['stock_data']}
+
+Please provide:
+1. Overall Market Sentiment
+2. Key Market Movers
+3. Sector Performance
+4. FII/DII Activity
+5. Global Market Impact
+6. Technical Outlook
+7. Market Risks and Opportunities
+"""
+        
+        market_analysis = await claude_service.analyze_text(market_prompt)
+        
+        return {
+            'nifty50': nifty_analysis['raw_data'],
+            'sensex': sensex_analysis['raw_data'],
+            'market_analysis': market_analysis,
+            'timestamp': datetime.utcnow(),
+            'status': 'success'
+        }
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

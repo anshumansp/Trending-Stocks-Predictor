@@ -1,0 +1,7 @@
+For testing Indian Stocks Data:
+
+CMD-----> cmd /c cd services\venv\Scripts && activate
+PWSH------> powershell -Command & .\services\venv\Scripts\Activate.ps1
+Navigate to services/agents Directory:
+python -m pip install -r requirements.txt
+python test_indian_stocks.py
