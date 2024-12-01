@@ -1,14 +1,16 @@
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Tuple, List
 import yfinance as yf
 import pandas as pd
 from base_agent import BaseStockAgent
 import time
 from requests.exceptions import ConnectionError, ReadTimeout
 import asyncio
-from typing import Tuple
+import aiohttp
+import json
 
 class IndianStockDataAgent(BaseStockAgent):
     def __init__(self):
+        """Initialize the Indian Stock Data Agent"""
         super().__init__(
             name="Indian Stock Data Agent",
             description="Specializes in Indian stock market data from NSE and BSE, including prices, volumes, and technical indicators."
@@ -73,40 +75,67 @@ class IndianStockDataAgent(BaseStockAgent):
             "WIPRO.NS"       # Wipro
         ]
 
-        # Add sector indices
-        self.sector_indices = {
-            # Major Sector Indices
-            'auto': '^CNXAUTO',
-            'bank': '^NSEBANK',
-            'financial_services': '^CNXFIN',
-            'fmcg': '^CNXFMCG',
-            'healthcare': '^CNXHEALTH',
-            'it': '^CNXIT',
-            'media': '^CNXMEDIA',
-            'metal': '^CNXMETAL',
-            'pharma': '^CNXPHARMA',
-            'private_bank': '^NIFTYPRBANK',
-            'psu_bank': '^CNXPSUBANK',
-            'realty': '^CNXREALTY',
-            'consumer_durables': '^CNXCONSUM',
-            'oil_gas': '^CNXENERGY',
-            
-            # Thematic Indices
-            'commodities': '^CNXCOMM',
-            'cpse': '^CNXCPSE',
-            'ev_auto': '^CNXEVAUTO',
-            'energy': '^CNXENERGY',
-            'consumption': '^CNXCONSUM',
-            'defence': '^CNXDEFENCE',
-            'digital': '^CNXDIGITAL',
-            'manufacturing': '^CNXMANUF',
-            'infrastructure': '^CNXINFRA',
-            'mnc': '^CNXMNC',
-            'pse': '^CNXPSE',
-            'services': '^CNXSERV',
-            'esg': '^NIFTYESG'
+        # NSE sector indices mapping
+        self.sectors = {
+            'auto': 'NIFTY AUTO',
+            'bank': 'NIFTY BANK',
+            'financial_services': 'NIFTY FINANCIAL SERVICES',
+            'fmcg': 'NIFTY FMCG',
+            'healthcare': 'NIFTY HEALTHCARE',
+            'it': 'NIFTY IT',
+            'media': 'NIFTY MEDIA',
+            'metal': 'NIFTY METAL',
+            'pharma': 'NIFTY PHARMA',
+            'psu_bank': 'NIFTY PSU BANK',
+            'realty': 'NIFTY REALTY',
+            'consumer_durables': 'NIFTY CONSUMER DURABLES',
+            'oil_gas': 'NIFTY OIL & GAS',
+            'infrastructure': 'NIFTY INFRASTRUCTURE',
+            'mnc': 'NIFTY MNC'
         }
+
+        # NSE URLs
+        self.base_url = "https://www.nseindia.com"
+        self.sector_url = f"{self.base_url}/api/equity-stockIndices?index="
         
+        # Headers for NSE requests
+        self.headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Cache-Control': 'max-age=0'
+        }
+        self.session = None
+        self.cookies = {}
+
+    async def _init_session(self):
+        """Initialize session with required cookies"""
+        try:
+            if not self.session:
+                self.session = aiohttp.ClientSession(headers=self.headers)
+            
+            # Get cookies from main page
+            async with self.session.get(self.base_url) as response:
+                if response.status == 200:
+                    # Store cookies
+                    self.cookies = {key: value.value for key, value in response.cookies.items()}
+                    
+                    # Update headers with cookies
+                    cookie_string = '; '.join([f'{key}={value}' for key, value in self.cookies.items()])
+                    self.headers['Cookie'] = cookie_string
+                    
+                    return True
+                else:
+                    print(f"Failed to initialize session: {response.status}")
+                    return False
+                    
+        except Exception as e:
+            print(f"Error initializing session: {str(e)}")
+            return False
+
     def get_stock_data_with_retry(self, symbol: str, max_retries: int = 3) -> Tuple[yf.Ticker, dict, pd.DataFrame]:
         """Get stock data with retry logic"""
         for attempt in range(max_retries):
@@ -169,117 +198,280 @@ class IndianStockDataAgent(BaseStockAgent):
             'price_change_1y': hist_data['Close'].pct_change(periods=252).iloc[-1]
         }
 
-    async def analyze_sector(self, sector_name: str) -> Dict[str, Any]:
-        """Analyze a specific sector's performance"""
+    async def analyze_nifty50(self) -> Dict[str, Any]:
+        """Analyze Nifty 50 stocks performance and metrics"""
         try:
-            symbol = self.sector_indices.get(sector_name)
-            if not symbol:
-                return {'error': f'Sector {sector_name} not found'}
-
-            stock = yf.Ticker(symbol)
+            print("\nAnalyzing Nifty 50 stocks...")
+            results = []
+            errors = []
             
-            # Get historical data for different timeframes
-            hist_data = {
-                'weekly': stock.history(period='5d'),
-                'monthly': stock.history(period='1mo'),
-                'quarterly': stock.history(period='3mo'),
-                'yearly': stock.history(period='1y')
-            }
-            
-            # Calculate performance for each timeframe
-            performance = {}
-            for timeframe, data in hist_data.items():
-                if not data.empty:
-                    start_price = data['Close'].iloc[0]
-                    end_price = data['Close'].iloc[-1]
-                    performance[timeframe] = ((end_price - start_price) / start_price) * 100
-                else:
-                    performance[timeframe] = float('nan')
-            
-            # Get current technical indicators
-            current_data = hist_data['monthly']  # Use monthly data for indicators
-            if not current_data.empty:
-                # Calculate technical indicators
-                current_data['SMA_20'] = current_data['Close'].rolling(window=20).mean()
-                current_data['Volume_MA'] = current_data['Volume'].rolling(window=20).mean()
+            for symbol in self.nifty_50_symbols:
+                try:
+                    print(f"Processing {symbol}")
+                    # Get stock data with retry logic
+                    stock, info, hist = self.get_stock_data_with_retry(symbol)
+                    
+                    if hist.empty:
+                        errors.append(f"{symbol}: No historical data available")
+                        continue
+                        
+                    # Calculate technical indicators
+                    indicators = self.calculate_technical_indicators(hist)
+                    
+                    # Get sector information
+                    sector = info.get('sector', 'Unknown')
+                    industry = info.get('industry', 'Unknown')
+                    
+                    # Format market cap in billions
+                    market_cap = info.get("marketCap", 0)
+                    market_cap_b = f"Rs. {market_cap/1e9:.2f}B" if market_cap else "N/A"
+                    
+                    stock_data = {
+                        "symbol": symbol,
+                        "name": info.get("longName", symbol.split('.')[0]),
+                        "sector": sector,
+                        "industry": industry,
+                        "current_price": f"Rs. {indicators['current_price']:.2f}",
+                        "market_cap": market_cap_b,
+                        "pe_ratio": info.get("forwardPE", info.get("trailingPE", "N/A")),
+                        "dividend_yield": f"{info.get('dividendYield', 0)*100:.2f}%" if info.get('dividendYield') else "N/A",
+                        "technical_indicators": {
+                            "rsi": round(indicators['rsi'], 2) if not pd.isna(indicators['rsi']) else None,
+                            "macd": round(indicators['macd'], 2) if not pd.isna(indicators['macd']) else None,
+                            "momentum": round(indicators['momentum'] * 100, 2) if not pd.isna(indicators['momentum']) else None
+                        },
+                        "performance": {
+                            "1m": round(indicators['price_change_1m'] * 100, 2) if not pd.isna(indicators['price_change_1m']) else None,
+                            "3m": round(indicators['price_change_3m'] * 100, 2) if not pd.isna(indicators['price_change_3m']) else None,
+                            "1y": round(indicators['price_change_1y'] * 100, 2) if not pd.isna(indicators['price_change_1y']) else None
+                        }
+                    }
+                    results.append(stock_data)
+                    
+                except Exception as e:
+                    errors.append(f"{symbol}: {str(e)}")
                 
-                rsi = self.calculate_rsi(current_data['Close'])
-                macd, signal = self.calculate_macd(current_data['Close'])
-                
-                technical_indicators = {
-                    'rsi': rsi.iloc[-1] if not rsi.empty else None,
-                    'macd': macd.iloc[-1] if not macd.empty else None,
-                    'sma_20': current_data['SMA_20'].iloc[-1] if 'SMA_20' in current_data else None,
-                    'volume_trend': current_data['Volume'].iloc[-1] / current_data['Volume_MA'].iloc[-1] if 'Volume_MA' in current_data and current_data['Volume_MA'].iloc[-1] != 0 else 1.0
-                }
-            else:
-                technical_indicators = {
-                    'rsi': None,
-                    'macd': None,
-                    'sma_20': None,
-                    'volume_trend': 1.0
-                }
+                # Rate limiting
+                await asyncio.sleep(0.5)
             
-            # Calculate momentum score
-            momentum_score = self.calculate_momentum_score(technical_indicators, performance)
+            # Group stocks by sector
+            sector_groups = {}
+            for stock in results:
+                sector = stock['sector']
+                if sector not in sector_groups:
+                    sector_groups[sector] = []
+                sector_groups[sector].append(stock)
+            
+            # Calculate sector performance
+            sector_performance = []
+            for sector, stocks in sector_groups.items():
+                if stocks:  # Only process if there are stocks in the sector
+                    monthly_returns = [s['performance']['1m'] for s in stocks if s['performance']['1m'] is not None]
+                    quarterly_returns = [s['performance']['3m'] for s in stocks if s['performance']['3m'] is not None]
+                    
+                    avg_1m = sum(monthly_returns) / len(monthly_returns) if monthly_returns else 0
+                    avg_3m = sum(quarterly_returns) / len(quarterly_returns) if quarterly_returns else 0
+                    
+                    sector_performance.append({
+                        'sector': sector,
+                        'stock_count': len(stocks),
+                        'avg_1m_return': round(avg_1m, 2),
+                        'avg_3m_return': round(avg_3m, 2)
+                    })
             
             return {
-                'sector': sector_name,
-                'symbol': symbol,
-                'performance': performance,
-                'technical_indicators': technical_indicators,
-                'momentum_score': momentum_score
+                'stocks': results,
+                'sector_performance': sorted(sector_performance, key=lambda x: x['avg_1m_return'], reverse=True),
+                'errors': errors if errors else None
             }
             
         except Exception as e:
-            print(f"Error analyzing sector {sector_name}: {str(e)}")
-            return {
-                'sector': sector_name,
-                'symbol': self.sector_indices.get(sector_name),
-                'performance': {
-                    'weekly': float('nan'),
-                    'monthly': float('nan'),
-                    'quarterly': float('nan'),
-                    'yearly': float('nan')
-                },
-                'technical_indicators': {
-                    'rsi': None,
-                    'macd': None,
-                    'sma_20': None,
-                    'volume_trend': 1.0
-                },
-                'momentum_score': 0
-            }
+            return {'error': f'Error analyzing Nifty 50: {str(e)}'}
 
-    async def get_top_sectors(self, timeframe: str = "all") -> dict:
-        """Get top 5 sectors based on momentum for different timeframes"""
+    async def analyze_sector(self, sector_name: str) -> Dict[str, Any]:
+        """Analyze a sector's performance using constituent stocks"""
+        try:
+            # Map sector name to its constituent stocks
+            sector_stocks = {
+                'auto': ["TATAMOTORS.NS", "M&M.NS", "MARUTI.NS", "HEROMOTOCO.NS", "BAJAJ-AUTO.NS"],
+                'bank': ["HDFCBANK.NS", "ICICIBANK.NS", "AXISBANK.NS", "SBIN.NS", "KOTAKBANK.NS"],
+                'financial_services': ["BAJFINANCE.NS", "BAJAJFINSV.NS", "HDFCLIFE.NS", "SBILIFE.NS"],
+                'it': ["TCS.NS", "INFY.NS", "HCLTECH.NS", "TECHM.NS", "WIPRO.NS"],
+                'metal': ["HINDALCO.NS", "JSWSTEEL.NS", "TATASTEEL.NS"],
+                'oil_gas': ["RELIANCE.NS", "BPCL.NS", "IOC.NS", "ONGC.NS"],
+                'pharma': ["SUNPHARMA.NS", "DRREDDY.NS", "CIPLA.NS"],
+                'consumer': ["HINDUNILVR.NS", "ITC.NS", "NESTLEIND.NS", "TITAN.NS", "TATACONSUM.NS"]
+            }
+            
+            if sector_name not in sector_stocks:
+                return {'error': f'Sector {sector_name} not found or not supported'}
+            
+            stocks = sector_stocks[sector_name]
+            results = []
+            errors = []
+            
+            for symbol in stocks:
+                try:
+                    # Get stock data with retry logic
+                    stock, info, hist = self.get_stock_data_with_retry(symbol)
+                    
+                    if not hist.empty:
+                        # Calculate technical indicators
+                        indicators = self.calculate_technical_indicators(hist)
+                        
+                        # Handle potential None values in performance metrics
+                        monthly_return = indicators.get('price_change_1m', None)
+                        quarterly_return = indicators.get('price_change_3m', None)
+                        
+                        stock_data = {
+                            "symbol": symbol,
+                            "name": info.get("longName", symbol.split('.')[0]),
+                            "current_price": f"Rs. {indicators.get('current_price', 0):.2f}",
+                            "change_percent": info.get("regularMarketChangePercent", 0),
+                            "market_cap": f"Rs. {info.get('marketCap', 0)/1e9:.2f}B",
+                            "performance": {
+                                "1m": round(monthly_return * 100, 2) if monthly_return is not None else 0,
+                                "3m": round(quarterly_return * 100, 2) if quarterly_return is not None else 0
+                            }
+                        }
+                        results.append(stock_data)
+                    else:
+                        errors.append(f"No data available for {symbol}")
+                    
+                except Exception as e:
+                    errors.append(f"Error processing {symbol}: {str(e)}")
+                
+                # Rate limiting
+                await asyncio.sleep(0.5)
+            
+            if not results:
+                return {'error': f'No data available for sector {sector_name}. Errors: {", ".join(errors)}'}
+            
+            # Calculate sector metrics with error handling
+            monthly_returns = [s['performance']['1m'] for s in results]
+            quarterly_returns = [s['performance']['3m'] for s in results]
+            
+            # Filter out zero values for average calculations
+            valid_monthly = [r for r in monthly_returns if r != 0]
+            valid_quarterly = [r for r in quarterly_returns if r != 0]
+            
+            sector_data = {
+                'name': sector_name,
+                'stocks': results,
+                'performance': {
+                    'avg_1m_return': round(sum(valid_monthly) / len(valid_monthly), 2) if valid_monthly else 0,
+                    'avg_3m_return': round(sum(valid_quarterly) / len(valid_quarterly), 2) if valid_quarterly else 0,
+                    'stock_count': len(results)
+                }
+            }
+            
+            if errors:
+                sector_data['errors'] = errors
+                
+            return sector_data
+            
+        except Exception as e:
+            return {'error': f'Error analyzing sector {sector_name}: {str(e)}'}
+
+    async def get_top_sectors(self) -> dict:
+        """Get top sectors based on momentum"""
         all_sectors = []
+        errors = []
         
         print("\nAnalyzing sector performance...")
-        total_sectors = len(self.sector_indices)
+        total_sectors = len(self.sectors)
         
-        for idx, (sector_name, _) in enumerate(self.sector_indices.items(), 1):
+        for idx, (sector_name, _) in enumerate(self.sectors.items(), 1):
             print(f"Processing {sector_name} ({idx}/{total_sectors})")
-            analysis = await self.analyze_sector(sector_name)
-            if 'error' not in analysis:
-                all_sectors.append(analysis)
-            time.sleep(0.5)  # Rate limiting
+            try:
+                analysis = await self.analyze_sector(sector_name)
+                if 'error' in analysis:
+                    errors.append(f"{sector_name}: {analysis['error']}")
+                else:
+                    # Only add sectors with valid performance data
+                    if analysis['performance']['avg_1m_return'] != 0 or analysis['performance']['avg_3m_return'] != 0:
+                        all_sectors.append(analysis)
+            except Exception as e:
+                errors.append(f"{sector_name}: {str(e)}")
+            
+            # Rate limiting
+            await asyncio.sleep(1)
             
         if not all_sectors:
-            return {'error': 'No sector data available'}
+            error_msg = "\n".join(errors)
+            return {'error': f'No sector data available. Errors encountered:\n{error_msg}'}
             
-        # Sort sectors by different timeframes
-        weekly = sorted(all_sectors, key=lambda x: x['performance']['weekly'], reverse=True)[:5]
-        monthly = sorted(all_sectors, key=lambda x: x['performance']['monthly'], reverse=True)[:5]
-        quarterly = sorted(all_sectors, key=lambda x: x['performance']['quarterly'], reverse=True)[:5]
-        yearly = sorted(all_sectors, key=lambda x: x['performance']['yearly'], reverse=True)[:5]
-        
-        return {
-            'weekly': weekly,
-            'monthly': monthly,
-            'quarterly': quarterly,
-            'yearly': yearly
-        }
+        # Sort sectors by different timeframes with error handling
+        try:
+            # Helper function to safely get performance values
+            def safe_get_performance(sector, metric):
+                try:
+                    return sector.get('performance', {}).get(metric, 0) or 0
+                except:
+                    return 0
+
+            weekly = sorted(all_sectors, 
+                          key=lambda x: safe_get_performance(x, 'avg_1m_return'), 
+                          reverse=True)[:5]
+            monthly = sorted(all_sectors, 
+                           key=lambda x: safe_get_performance(x, 'avg_1m_return'), 
+                           reverse=True)[:5]
+            quarterly = sorted(all_sectors, 
+                             key=lambda x: safe_get_performance(x, 'avg_3m_return'), 
+                             reverse=True)[:5]
+            yearly = sorted(all_sectors, 
+                          key=lambda x: safe_get_performance(x, 'avg_3m_return'), 
+                          reverse=True)[:5]
+            
+            return {
+                'weekly': weekly,
+                'monthly': monthly,
+                'quarterly': quarterly,
+                'yearly': yearly,
+                'errors': errors if errors else None
+            }
+        except Exception as e:
+            return {'error': f'Error sorting sector data: {str(e)}'}
+
+    async def calculate_momentum_score(self, symbol: str) -> dict:
+        """Calculate momentum score for a given symbol"""
+        try:
+            # Get historical data for different timeframes
+            data = yf.download(symbol, period="1y", interval="1d")
+            if data.empty:
+                return {'error': f'No data available for {symbol}'}
+
+            # Calculate returns for different timeframes
+            current_price = data['Close'][-1]
+            weekly_price = data['Close'][-5] if len(data) >= 5 else data['Close'][0]
+            monthly_price = data['Close'][-21] if len(data) >= 21 else data['Close'][0]
+            quarterly_price = data['Close'][-63] if len(data) >= 63 else data['Close'][0]
+            yearly_price = data['Close'][0]
+
+            performance = {
+                'weekly': ((current_price / weekly_price) - 1) * 100,
+                'monthly': ((current_price / monthly_price) - 1) * 100,
+                'quarterly': ((current_price / quarterly_price) - 1) * 100,
+                'yearly': ((current_price / yearly_price) - 1) * 100
+            }
+
+            # Calculate momentum score
+            momentum_score = (
+                performance['weekly'] * 0.3 +
+                performance['monthly'] * 0.3 +
+                performance['quarterly'] * 0.2 +
+                performance['yearly'] * 0.2
+            )
+
+            return {
+                'symbol': symbol,
+                'performance': performance,
+                'momentum_score': momentum_score,
+                'current_price': current_price
+            }
+
+        except Exception as e:
+            return {'error': f'Error calculating momentum score: {str(e)}'}
 
     async def process_request(self, request: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Process an Indian stock data request"""
@@ -314,7 +506,7 @@ class IndianStockDataAgent(BaseStockAgent):
                 }
                 
             # Handle specific sector analysis
-            for sector_name in self.sector_indices.keys():
+            for sector_name in self.sectors.keys():
                 if sector_name.upper() in request.upper():
                     return await self.analyze_sector(sector_name)
                     
@@ -400,18 +592,18 @@ class IndianStockDataAgent(BaseStockAgent):
             # Format market cap in billions for readability
             market_cap = info.get("marketCap", "N/A")
             if market_cap != "N/A":
-                market_cap = f"₹{market_cap/1e9:.2f}B"
+                market_cap = f"Rs. {market_cap/1e9:.2f}B"
             
             return {
                 "symbol": symbol,
                 "name": info.get("longName", symbol.split('.')[0]),
-                "current_price": f"₹{current_price:.2f}" if current_price != "N/A" else "N/A",
+                "current_price": f"Rs. {current_price:.2f}" if current_price != "N/A" else "N/A",
                 "change_percent": info.get("regularMarketChangePercent", 0),
                 "volume": format(info.get("regularMarketVolume", 0), ','),
                 "market_cap": market_cap,
                 "pe_ratio": info.get("forwardPE", info.get("trailingPE", "N/A")),
-                "52_week_high": f"₹{info.get('fiftyTwoWeekHigh', 'N/A')}",
-                "52_week_low": f"₹{info.get('fiftyTwoWeekLow', 'N/A')}",
+                "52_week_high": f"Rs. {info.get('fiftyTwoWeekHigh', 'N/A')}",
+                "52_week_low": f"Rs. {info.get('fiftyTwoWeekLow', 'N/A')}",
                 "avg_volume": format(info.get("averageVolume", 0), ','),
                 "dividend_yield": f"{info.get('dividendYield', 0)*100:.2f}%" if info.get('dividendYield') else "N/A"
             }
@@ -454,51 +646,54 @@ class IndianStockDataAgent(BaseStockAgent):
         
         return macd, signal_line
         
-    def calculate_momentum_score(self, technical_indicators: Dict[str, float], performance: Dict[str, float]) -> float:
-        """Calculate momentum score based on technical indicators and performance"""
+    async def calculate_momentum_score(self, symbol: str) -> dict:
+        """Calculate momentum score for a given symbol"""
         try:
-            score = 0.0
-            
-            # RSI component (30%)
-            if technical_indicators['rsi'] is not None:
-                rsi = technical_indicators['rsi']
-                if rsi > 70:
-                    score += 0.3  # Overbought
-                elif rsi < 30:
-                    score += 0.1  # Oversold
-                else:
-                    score += 0.2  # Neutral
-                    
-            # MACD component (15%)
-            if technical_indicators['macd'] is not None:
-                if technical_indicators['macd'] > 0:
-                    score += 0.15
-                    
-            # SMA trend component (20%)
-            if technical_indicators['sma_20'] is not None:
-                if technical_indicators['sma_20'] > 0:
-                    score += 0.2
-                    
-            # Volume trend component (15%)
-            volume_trend = technical_indicators['volume_trend']
-            if volume_trend > 1.1:  # Volume increasing
-                score += 0.15
-            elif volume_trend > 0.9:  # Volume stable
-                score += 0.1
-                
-            # Performance component (20%)
-            if not pd.isna(performance['monthly']):
-                monthly_perf = performance['monthly']
-                if monthly_perf > 5:
-                    score += 0.2
-                elif monthly_perf > 0:
-                    score += 0.1
-                    
-            return score
-            
+            # Get historical data for different timeframes
+            data = yf.download(symbol, period="1y", interval="1d")
+            if data.empty:
+                return {'error': f'No data available for {symbol}'}
+
+            # Calculate returns for different timeframes
+            current_price = data['Close'][-1]
+            weekly_price = data['Close'][-5] if len(data) >= 5 else data['Close'][0]
+            monthly_price = data['Close'][-21] if len(data) >= 21 else data['Close'][0]
+            quarterly_price = data['Close'][-63] if len(data) >= 63 else data['Close'][0]
+            yearly_price = data['Close'][0]
+
+            performance = {
+                'weekly': ((current_price / weekly_price) - 1) * 100,
+                'monthly': ((current_price / monthly_price) - 1) * 100,
+                'quarterly': ((current_price / quarterly_price) - 1) * 100,
+                'yearly': ((current_price / yearly_price) - 1) * 100
+            }
+
+            # Calculate momentum score
+            momentum_score = (
+                performance['weekly'] * 0.3 +
+                performance['monthly'] * 0.3 +
+                performance['quarterly'] * 0.2 +
+                performance['yearly'] * 0.2
+            )
+
+            return {
+                'symbol': symbol,
+                'performance': performance,
+                'momentum_score': momentum_score,
+                'current_price': current_price
+            }
+
         except Exception as e:
-            print(f"Error calculating momentum score: {str(e)}")
-            return 0.0
+            return {'error': f'Error calculating momentum score: {str(e)}'}
+
+    async def __aenter__(self):
+        """Async context manager entry"""
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit"""
+        if self.session:
+            await self.session.close()
 
 if __name__ == "__main__":
     # Example usage

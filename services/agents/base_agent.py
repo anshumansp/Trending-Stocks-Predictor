@@ -1,10 +1,25 @@
 from typing import Dict, Any, Optional, Protocol
 from abc import ABC, abstractmethod
 import anthropic
+import sys
+import os
+
+# Add the parent directory to sys.path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import ANTHROPIC_CONFIG
 
 class AgentCallbacks(Protocol):
-    def on_llm_new_token(self, token: str) -> None: ...
+    def on_llm_new_token(self, token: str) -> None:
+        """Called when a new token is generated."""
+        pass
+
+    def on_llm_end(self, response: str) -> None:
+        """Called when LLM response generation is complete."""
+        pass
+
+    def on_llm_error(self, error: str) -> None:
+        """Called when LLM encounters an error."""
+        pass
 
 class BaseStockAgent(ABC):
     def __init__(self, name: str, description: str):
