@@ -1,338 +1,167 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Filter, Search, RefreshCw, BarChart2, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Filter, Search, RefreshCw } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-
-interface Stock {
-  symbol: string;
-  name: string;
-  price: number;
-  change: number;
-  prediction: {
-    recommendation: 'buy' | 'sell' | 'hold';
-    confidence: number;
-    targetPrice: number;
-    timeframe: string;
-  };
-  analysis: {
-    technical: {
-      rsi: number;
-      macd: string;
-      movingAverages: string;
-    };
-    fundamental: {
-      peRatio: number;
-      marketCap: string;
-      revenue: string;
-    };
-    sentiment: {
-      score: number;
-      newsCount: number;
-      socialMentions: number;
-    };
-  };
-  risk: {
-    level: 'low' | 'medium' | 'high';
-    volatility: number;
-    betaValue: number;
-  };
-}
-
-const mockStocks: Stock[] = [
-  {
-    symbol: 'AAPL',
-    name: 'Apple Inc.',
-    price: 189.84,
-    change: 2.34,
-    prediction: {
-      recommendation: 'buy',
-      confidence: 85,
-      targetPrice: 205.00,
-      timeframe: '3 months'
-    },
-    analysis: {
-      technical: {
-        rsi: 62,
-        macd: 'bullish',
-        movingAverages: 'uptrend'
-      },
-      fundamental: {
-        peRatio: 28.5,
-        marketCap: '2.95T',
-        revenue: '383.93B'
-      },
-      sentiment: {
-        score: 0.78,
-        newsCount: 156,
-        socialMentions: 25000
-      }
-    },
-    risk: {
-      level: 'low',
-      volatility: 0.23,
-      betaValue: 1.12
-    }
-  },
-  {
-    symbol: 'MSFT',
-    name: 'Microsoft Corporation',
-    price: 378.85,
-    change: 4.12,
-    prediction: {
-      recommendation: 'buy',
-      confidence: 82,
-      targetPrice: 400.00,
-      timeframe: '3 months'
-    },
-    analysis: {
-      technical: {
-        rsi: 58,
-        macd: 'bullish',
-        movingAverages: 'uptrend'
-      },
-      fundamental: {
-        peRatio: 35.2,
-        marketCap: '2.82T',
-        revenue: '211.92B'
-      },
-      sentiment: {
-        score: 0.82,
-        newsCount: 134,
-        socialMentions: 20000
-      }
-    },
-    risk: {
-      level: 'low',
-      volatility: 0.21,
-      betaValue: 0.98
-    }
-  }
-];
+import { sectorData, nifty50Data } from '@/data/stockData';
+import { motion } from 'framer-motion';
 
 export default function StockPredictor() {
-  const [viewMode, setViewMode] = useState<'list' | 'detailed'>('detailed');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
-
-  const getRecommendationColor = (rec: string) => {
-    switch (rec) {
-      case 'buy': return 'text-emerald-green';
-      case 'sell': return 'text-crimson-red';
-      case 'hold': return 'text-gold';
-      default: return 'text-muted-gray';
-    }
-  };
-
-  const getRiskColor = (level: string) => {
-    switch (level) {
-      case 'low': return 'text-emerald-green';
-      case 'medium': return 'text-gold';
-      case 'high': return 'text-crimson-red';
-      default: return 'text-muted-gray';
-    }
-  };
+  const [activeTab, setActiveTab] = useState('sectors');
 
   return (
-    <div className="min-h-screen bg-light-gray">
+    <div className="min-h-screen bg-gray-50">
+      {/* Hero Section */}
+      <section className="bg-black text-white py-16">
+        <div className="container mx-auto px-4">
+          <h1 className="text-4xl font-bold mb-4">Indian Stock Market Analysis</h1>
+          <p className="text-gray-300">Comprehensive analysis of Nifty 50 stocks and sectors</p>
+        </div>
+      </section>
+
+      {/* Main Content */}
       <div className="container mx-auto px-4 py-8">
-        {/* Header Section */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-4 text-navy-blue">
-            Stock Predictor
-          </h1>
-          <p className="text-muted-gray max-w-2xl">
-            AI-powered stock analysis and predictions using advanced algorithms, technical indicators, 
-            fundamental analysis, and sentiment analysis.
-          </p>
-        </div>
-
-        {/* Search and Filter Section */}
-        <div className="flex flex-wrap gap-4 mb-8">
-          <div className="flex-1 min-w-[300px]">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-gray" />
-              <input
-                type="text"
-                placeholder="Search stocks..."
-                className="input-primary w-full pl-10"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-          </div>
-          <Button className="btn-secondary flex items-center gap-2">
-            <Filter size={16} />
-            Filter
-          </Button>
-          <Button className="btn-secondary flex items-center gap-2">
-            <RefreshCw size={16} />
-            Refresh
-          </Button>
-        </div>
-
-        {/* Stocks Grid */}
-        <div className="grid grid-cols-1 gap-6">
-          {mockStocks.map((stock) => (
-            <div
-              key={stock.symbol}
-              className="card hover:shadow-lg"
+        {/* Navigation Tabs */}
+        <div className="flex space-x-4 mb-8">
+          {['sectors', 'stocks', 'performance'].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                activeTab === tab
+                  ? 'bg-black text-white'
+                  : 'bg-white text-black hover:bg-gray-100'
+              }`}
             >
-              {/* Stock Header */}
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <h3 className="text-2xl font-bold text-navy-blue mb-1">
-                    {stock.symbol} - {stock.name}
-                  </h3>
-                  <div className="flex items-center gap-4">
-                    <span className="text-xl text-dark-charcoal">${stock.price}</span>
-                    <span className={stock.change >= 0 ? 'text-emerald-green' : 'text-crimson-red'}>
-                      {stock.change >= 0 ? '+' : ''}{stock.change}%
-                    </span>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className={`text-lg font-semibold mb-1 ${getRecommendationColor(stock.prediction.recommendation)}`}>
-                    {stock.prediction.recommendation.toUpperCase()}
-                  </div>
-                  <div className="text-muted-gray">
-                    {stock.prediction.confidence}% confidence
-                  </div>
-                </div>
-              </div>
-
-              {/* Analysis Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Technical Analysis */}
-                <div className="space-y-4">
-                  <h4 className="text-lg font-semibold flex items-center gap-2 text-navy-blue">
-                    <BarChart2 className="text-gold" />
-                    Technical Analysis
-                  </h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-muted-gray">RSI</span>
-                      <span className="text-dark-charcoal">{stock.analysis.technical.rsi}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-gray">MACD</span>
-                      <span className="text-dark-charcoal capitalize">{stock.analysis.technical.macd}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-gray">Moving Averages</span>
-                      <span className="text-dark-charcoal capitalize">{stock.analysis.technical.movingAverages}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Fundamental Analysis */}
-                <div className="space-y-4">
-                  <h4 className="text-lg font-semibold flex items-center gap-2 text-navy-blue">
-                    <TrendingUp className="text-gold" />
-                    Fundamental Analysis
-                  </h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-muted-gray">P/E Ratio</span>
-                      <span className="text-dark-charcoal">{stock.analysis.fundamental.peRatio}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-gray">Market Cap</span>
-                      <span className="text-dark-charcoal">{stock.analysis.fundamental.marketCap}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-gray">Revenue</span>
-                      <span className="text-dark-charcoal">{stock.analysis.fundamental.revenue}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Risk Assessment */}
-                <div className="space-y-4">
-                  <h4 className="text-lg font-semibold flex items-center gap-2 text-navy-blue">
-                    <AlertTriangle className="text-gold" />
-                    Risk Assessment
-                  </h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-muted-gray">Risk Level</span>
-                      <span className={getRiskColor(stock.risk.level)}>
-                        {stock.risk.level.toUpperCase()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-gray">Volatility</span>
-                      <span className="text-dark-charcoal">{(stock.risk.volatility * 100).toFixed(1)}%</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-gray">Beta</span>
-                      <span className="text-dark-charcoal">{stock.risk.betaValue}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Prediction Details */}
-              <div className="mt-6 p-4 bg-navy-blue/5 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-muted-gray">Target Price:</span>
-                    <span className="ml-2 text-lg font-semibold text-emerald-green">
-                      ${stock.prediction.targetPrice}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-muted-gray">Timeframe:</span>
-                    <span className="ml-2 text-dark-charcoal">{stock.prediction.timeframe}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-gray">Sentiment Score:</span>
-                    <span className="ml-2 text-dark-charcoal">
-                      {(stock.analysis.sentiment.score * 100).toFixed(0)}%
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </button>
           ))}
         </div>
 
-        {/* Analysis Criteria Section */}
-        <div className="mt-12 card">
-          <h2 className="text-2xl font-bold mb-6 text-navy-blue">Analysis Criteria</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div>
-              <h3 className="text-lg font-semibold text-emerald-green mb-4">Technical Analysis</h3>
-              <ul className="space-y-2 text-muted-gray">
-                <li>• Relative Strength Index (RSI)</li>
-                <li>• Moving Average Convergence Divergence (MACD)</li>
-                <li>• Simple & Exponential Moving Averages</li>
-                <li>• Volume Analysis</li>
-                <li>• Price Action Patterns</li>
-              </ul>
+        {/* Sector Analysis */}
+        {activeTab === 'sectors' && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5 }}
+            className="space-y-8"
+          >
+            {/* Monthly Top Performers */}
+            <div className="bg-white p-6 rounded-lg shadow-lg">
+              <h2 className="text-2xl font-bold mb-6">Monthly Top Performers</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {sectorData.monthlyTopPerformers.map((sector) => (
+                  <div key={sector.sector} className="border p-4 rounded-lg">
+                    <h3 className="font-medium text-lg mb-2">{sector.sector}</h3>
+                    <p className="text-2xl font-bold text-green-600">{sector.return}</p>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div>
-              <h3 className="text-lg font-semibold text-gold mb-4">Fundamental Analysis</h3>
-              <ul className="space-y-2 text-muted-gray">
-                <li>• Price-to-Earnings Ratio</li>
-                <li>• Market Capitalization</li>
-                <li>• Revenue Growth</li>
-                <li>• Profit Margins</li>
-                <li>• Industry Performance</li>
-              </ul>
+
+            {/* Sector Details */}
+            <div className="bg-white p-6 rounded-lg shadow-lg">
+              <h2 className="text-2xl font-bold mb-6">Sector Analysis</h2>
+              <div className="space-y-6">
+                {sectorData.sectorDetails.map((sector) => (
+                  <div key={sector.name} className="border-t pt-4 first:border-t-0">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-xl font-semibold">{sector.name}</h3>
+                      <div className="text-right">
+                        <p className="text-sm text-gray-600">1-Month Return</p>
+                        <p className={`font-bold ${
+                          sector.monthReturn.startsWith('-') ? 'text-red-600' : 'text-green-600'
+                        }`}>
+                          {sector.monthReturn}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      {sector.topStocks.map((stock) => (
+                        <div key={stock.name} className="flex justify-between items-center bg-gray-50 p-2 rounded">
+                          <span>{stock.name}</span>
+                          <span className={`font-medium ${
+                            stock.return.startsWith('-') ? 'text-red-600' : 'text-green-600'
+                          }`}>
+                            {stock.return}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div>
-              <h3 className="text-lg font-semibold text-crimson-red mb-4">Risk Assessment</h3>
-              <ul className="space-y-2 text-muted-gray">
-                <li>• Historical Volatility</li>
-                <li>• Beta Value</li>
-                <li>• Market Sentiment</li>
-                <li>• News Analysis</li>
-                <li>• Social Media Trends</li>
-              </ul>
+          </motion.div>
+        )}
+
+        {/* Stock Analysis */}
+        {activeTab === 'stocks' && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5 }}
+          >
+            <div className="bg-white p-6 rounded-lg shadow-lg">
+              <h2 className="text-2xl font-bold mb-6">Top Performing Stocks</h2>
+              <div className="space-y-6">
+                {nifty50Data.topStocks.map((stock) => (
+                  <div key={stock.name} className="border p-6 rounded-lg hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <h3 className="text-xl font-bold">{stock.name}</h3>
+                        <p className="text-gray-600">{stock.sector}</p>
+                      </div>
+                      <span className="text-2xl font-bold text-green-600">{stock.monthReturn}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-gray-600">Current Price</p>
+                        <p className="font-medium">{stock.price}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Market Cap</p>
+                        <p className="font-medium">{stock.marketCap}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        )}
+
+        {/* Performance Metrics */}
+        {activeTab === 'performance' && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5 }}
+          >
+            <div className="bg-white p-6 rounded-lg shadow-lg">
+              <h2 className="text-2xl font-bold mb-6">Sector Performance Overview</h2>
+              <div className="space-y-4">
+                {nifty50Data.sectorPerformance.map((item) => (
+                  <div key={item.sector} className="border p-4 rounded-lg hover:bg-gray-50">
+                    <div className="flex justify-between items-center">
+                      <h3 className="font-medium">{item.sector}</h3>
+                      <div className="space-x-6">
+                        <span className={`font-medium ${
+                          item.monthly.startsWith('-') ? 'text-red-600' : 'text-green-600'
+                        }`}>
+                          1M: {item.monthly}
+                        </span>
+                        <span className="font-medium text-gray-600">
+                          3M: {item.quarterly}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
       </div>
     </div>
   );
