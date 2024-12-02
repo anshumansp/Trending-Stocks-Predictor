@@ -1,5 +1,34 @@
-For testing Indian Stocks Data:
+For Starting the FastAPI server:
+uvicorn main:app --reload
+uvicorn main:app --reload --port 8000
 
+
+For restarting the FastAPI server with better logging:
+uvicorn main:app --reload --log-level debug
+
+
+For Testing the FastAPI server:
+curl http://localhost:8000/
+
+
+For installing requirements:
+python -m pip install -r requirements.txt
+pip install -r requirements.txt
+
+
+For Testing Chat from Terminal:
+curl -X POST http://localhost:8000/chat -H Content-Type: application/json -d {"message": "What is the current weather?"}
+
+
+For testing if ANTHROPIC_API_KEY is set:
+python -c import os; from dotenv import load_dotenv; load_dotenv(); print(f'ANTHROPIC_API_KEY set: {bool(os.getenv("ANTHROPIC_API_KEY"))}')
+
+
+For running a test case:
+pytest test_main.py -v
+
+
+For testing Indian Stocks Data:
 PWSH------> powershell -Command & .\services\venv\Scripts\Activate.ps1
 CMD-----> cmd /c cd services\venv\Scripts && activate
 Navigate to services/agents Directory:
