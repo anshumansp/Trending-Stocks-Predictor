@@ -84,7 +84,7 @@ graph TB
 
 1. **Clone the Repository**
    ```bash
-   git clone [repository-url]
+   git clone (https://github.com/anshumansp/Trending-Stocks-Predictor/)
    cd aws-orchestrator
    ```
 
